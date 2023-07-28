@@ -18,7 +18,7 @@ app.use(express.static(staticPath));// middlewares
 const server = http.createServer(app);
 const io = socket(server);
 
-app.use("/",async (req,res)=>{
+app.use("/appstatus",async (req,res)=>{
     try {
         const connect = await mongoose.connect(process.env.CONN_MONGODB_URI);    
         results = 
