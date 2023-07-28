@@ -1,0 +1,230 @@
+@font-face {
+    font-family: "MyWebFont";
+    src: url(./assets/fonts/UberMoveMedium.otf);
+ }
+
+ *{
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+ }
+
+
+.nav{
+    background-color:#000000;
+    padding: 12px 12px 12px 30px;
+    width: 100%;
+}
+
+.logo{
+    width:80px;
+}
+
+/* HTML Input prop. Start*/
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="text"],input[type="password"],input[type="number"],input[type="date"]{
+    width:328px;
+    height:45px;
+    padding: 8px 5px 8px 15px;
+    border-radius: 8px;
+    border:0px;
+    background-color:#eeeeee;
+    color:#6b6b6b;
+    margin-bottom: 12px;
+}
+
+button[type="button"]{
+    display: block;
+    width:100%;
+    height:45px;
+    border-radius: 8px;
+    border:0px;
+    background-color:#000000;
+    color:#ffffff;
+    margin-top: 15px;
+}
+button[type="button"]:hover{
+    background-color: #333;
+}
+
+input[type="radio"]:checked{
+    accent-color:#000000;
+}
+
+
+/* HTML Input prop. End*/
+
+
+.forward{
+    display: inline-block !important;
+    width:auto !important;
+    border-radius: 35px !important;
+    padding: 5px 15px;
+}
+
+.forward i{
+    padding-left: 5px;
+    padding-right: 5px;
+    font-weight: 500;
+}
+
+
+.location_container{
+    background-color: rgba(127, 127, 127, 0.364);
+    width: 350px;
+    margin-top: 130px;
+    border-radius: 16px;
+    padding-left: 100px;
+    padding-right: 100px;
+    padding-bottom: 50px;
+    padding-top: 20px;
+}
+
+.icons{
+    font-size:20px;
+}
+
+.profile_title{
+    width:100px;
+    font-weight: 600;
+}
+
+.profile_pic{
+    width:90px;
+    height:90px;
+    border-radius: 50%;
+}
+
+
+.gender{
+    display:inline-block;
+    width:328px;
+    height:45px;
+    padding: 8px 5px 8px 15px;
+    border-radius: 8px;
+    border:0px;
+    background-color:#eeeeee;
+    color:#6b6b6b;
+    margin-bottom: 12px;
+}
+.singup_details,.singin_details{
+    transition:none;
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    /* display: none; */
+}
+.btn_wrapper{
+    margin-left:0;
+    transition:all 1s ease;
+}
+.tx_align_left{
+    margin-left:235px;
+}
+.show{
+    
+    transition: all 0.5s ease-in-out;
+    width:auto;
+    opacity: 1;
+    visibility: visible;
+    height: auto;
+}
+#singup_container form > h1,#singin_container form > h1,#otp_container form > h1{
+    font-size:28px !important;
+    color:#000;
+    font-weight:500;
+    margin-bottom:25px;
+}
+.singin_details  a{
+    color:black;
+    margin-bottom:10px;
+    padding: 8px 12px;
+    border: 2px solid black;
+    display: inline-block;
+    border-radius: 20px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+#otp_timer{
+    border:2px solid transparent;
+    color:#7D7D7D;
+    background-color: #eee;
+    text-decoration: none;
+    margin-top: 0;
+    padding:2px 12px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    display: inline;
+    width: auto;
+}
+.enable{
+    border: 2px solid black !important;
+    background-color: white  !important;
+    color:#000  !important;
+    
+}
+.singin_details  a:hover{
+    border: 2px solid transparent;
+    background-color: #EEEEEE; 
+}
+.opt_input{
+    margin: auto; /* center horizontally */
+    
+    display: flex;
+    flex-flow: row nowrap;
+    width:100%;
+  }
+  
+  .opt_input > input {
+    margin: 0.5rem;
+    padding: 0.5rem;
+    max-width: 50px;
+    text-align: center;
+    border-radius: 0;
+  }
+  
+  /* remove the up/down spinner in number input
+     source - https://css-tricks.com/snippets/css/turn-off-number-input-spinners/
+  */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+
+  /* .page_title{
+    font-weight: bold !important;
+  } */
+
+
+  /* extra by hr097 --*/
+ .topnav {
+    overflow: hidden;
+    background-color: #000000;
+  }
+  
+  .topnav a {
+    float: left;
+    color: #f2f2f2;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    font-size: 17px;
+  }
+  
+  .topnav a:hover {
+    background-color: #000000;
+    color: rgb(9, 208, 9);
+  }
+  
+  .topnav a.active {
+    background-color: rgb(0, 0, 0)000;
+    color: rgb(9, 208, 9);
+  }
+
+/* till here extra by hr097 --*/
