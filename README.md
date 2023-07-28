@@ -17,15 +17,6 @@
   <a href="https://findmebuddy.vercel.app">View Demo</a>
 </div>
 
-
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Project ScreenShot
-
-<img src="https://res.cloudinary.com/dexratgkq/image/upload/v1661598778/samples/ss1_nnylvj.png">
-<img src="https://res.cloudinary.com/dexratgkq/image/upload/v1661598872/samples/ss2_yznoes.png">
-
 <br>
 <br>
   <h3 align="center">Tools and Technologies</h3>
