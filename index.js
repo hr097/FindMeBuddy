@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path"); 
 
 const socket = require("socket.io");
+const mongoose = require("mongoose");       
 const http = require('http');
 const Filter = require("bad-words");                   
 const dotenv = require("dotenv").config();           
@@ -17,6 +18,32 @@ app.use(express.static(staticPath));// middlewares
 const server = http.createServer(app);
 const io = socket(server);
 
+app.use("/",async (req,res)=>{
+    try {
+        const connect = await mongoose.connect(process.env.CONN_MONGODB_URI);    
+        results = 
+        {
+            title:'FindMeBuddy',
+            message:'Backend Services are working normally',
+            db_status:true,
+            db_message:"Database connected!",
+            app_status:true
+        };
+
+    }catch(err){
+        results = 
+        {
+            title:'FindMeBuddy',
+            message:'Backend Services are working normally',
+            db_status:false,
+            db_message:"Database not connected! \nError message =>"+err,
+            app_status:false,
+        };
+        
+    }
+    res.header("Content-Type",'application/json');
+    res.send(JSON.stringify(results, null, 4));
+}); 
 
 io.on("connection",(socket) => {
     console.log("connected !");
