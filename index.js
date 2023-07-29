@@ -9,7 +9,8 @@ const get_socket_id = ()=>{return user_app_socket_id;}
 
 const socket = require("socket.io");     
 const http = require('http');
-const session=require("express-session");    
+const session=require("express-session"); 
+var cookieParser = require('cookie-parser');     
 const Filter = require("bad-words"); 
 const dotenv = require("dotenv").config();           
 
