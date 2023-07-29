@@ -25,7 +25,7 @@ const sessionAcknowledged = (req,res)=>{
     res.send(JSON.stringify(results, null, 4));
 }
 
-router.route("/").get(sessionAcknowledged).post(sessionAcknowledged);
+router.route("/socketid").get(sessionAcknowledged).post(sessionAcknowledged);
 
 router.route("/appstatus").get(defaultRouteRun).post(defaultRouteRun);
 
