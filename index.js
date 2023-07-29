@@ -1,52 +1,51 @@
-const express = require("express");
-const path = require("path"); 
+const app = require("./express-app.js"); //express app
+const {updateUserSocketConnectionID} = require("./code.js"); //code library
+const dbConnect = require("./config/dbconnection.js");  //database
 
-const socket = require("socket.io");
-const mongoose = require("mongoose");       
+
+var user_app_socket_id = "";
+
+const get_socket_id = ()=>{return user_app_socket_id;}
+
+const socket = require("socket.io");     
 const http = require('http');
-const Filter = require("bad-words");                   
+const session=require("express-session");    
+const Filter = require("bad-words"); 
 const dotenv = require("dotenv").config();           
-const dbConnect = require("./config/dbconnection.js"); 
 
-const port = process.env.PORT || 1008;
-
-const app = express();
-app.use(express.json());
-const staticPath = path.join(__dirname,"./app"); // paths
-app.use(express.static(staticPath));// middlewares
-
+const port = process.env.PORT || 5001;
+const thirtyMinutes= 1800000;//milliseconds given
 const server = http.createServer(app);
 const io = socket(server);
 
-app.use("/appstatus",async (req,res)=>{
-    try {
-        const connect = await mongoose.connect(process.env.CONN_MONGODB_URI);    
-        results = 
-        {
-            title:'FindMeBuddy',
-            message:'Backend Services are working normally',
-            db_status:true,
-            db_message:"Database connected!",
-            app_status:true
-        };
+//* SESSION
 
-    }catch(err){
-        results = 
-        {
-            title:'FindMeBuddy',
-            message:'Backend Services are working normally',
-            db_status:false,
-            db_message:"Database not connected! \nError message =>"+err,
-            app_status:false,
-        };
-        
-    }
-    res.header("Content-Type",'application/json');
-    res.send(JSON.stringify(results, null, 4));
-}); 
+
+var sess = {
+    secret: process.env.SESSION_SECRET,
+    saveUninitialized: true,
+    cookie:{maxAge: thirtyMinutes,sameSite:true,httpOnly:true},
+    resave: false
+}
+
+if(app.get('env') === 'production') { //for development environment sessions security
+    app.set('trust proxy', 1) // trust first proxy
+    sess.cookie.secure = true // serve secure cookies
+}
+    
+app.use(session(sess))
+app.use(cookieParser());
+
+
+//* SOCKET 
 
 io.on("connection",(socket) => {
+
+    user_app_socket_id = socket.id;
+
     console.log(`${socket.id} is connected !`);
+
+    updateUserSocketConnectionID(username,socket.id);
 
     socket.on("join",(username,user_room_id,callback) => {
         
@@ -79,9 +78,12 @@ io.on("connection",(socket) => {
         callback();
     });
 
-    socket.on('disconnect',(username,user_room_id,) => {
+    socket.on('disconnect',(username,user_room_id) => {
+
         const user = socket.id;// need to remove so next time can't send message
-        
+
+        updateUserSocketConnectionID(username,"-");
+
         if(user){
             io.to(user_room_id).emit("message",`${username} is left !`);
         }
@@ -89,6 +91,8 @@ io.on("connection",(socket) => {
 
 });
 
+
+//* SERVER STARTED
 server.listen(port,(err) => {
     if(err)
     { 
@@ -98,7 +102,5 @@ server.listen(port,(err) => {
     console.log(`Server is Listening on port ${port}`);
     dbConnect();
 });
-    
 
-
-
+module.exports  = {get_socket_id}
