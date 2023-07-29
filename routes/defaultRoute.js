@@ -1,4 +1,4 @@
-const {get_socket_id} = require("../index.js");
+const {get_socket_id} = require("./index.js");
 const express = require("express")
 const router = express.Router();
 
@@ -12,13 +12,13 @@ const {defaultRouteRun} = require("../controllers/defaultController.js")
 
 //* DEFAULT ROUTE
 
-const s_id = get_socket_id;
+const s_id = get_socket_id();
 
 //* FUNCTIONS
 const results = {
     message:'Socket_id acknowledged!',
     app_status:true,
-    socket_id:s_id
+    "socket_id":s_id
 }; 
 
 const sessionAcknowledged = (req,res)=>{
