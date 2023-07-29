@@ -46,7 +46,7 @@ app.use("/appstatus",async (req,res)=>{
 }); 
 
 io.on("connection",(socket) => {
-    console.log("connected !");
+    console.log(`${socket.id} is connected !`);
 
     socket.on("join",(username,user_room_id,callback) => {
         
@@ -66,16 +66,16 @@ io.on("connection",(socket) => {
         // });
     });
 
-    socket.on("sendMessage",(username,user_room_id,msg,callback) => {
-        const user = getUser(socket.id);
-
+    socket.on("sendMessage",(s_id,msg,callback) => {
+        //const user = socket.id;
+       
         //const filter = new Filter();
         
         // if(filter.isProfane(msg)){
         //     callback("Not Valid Input !");
         // }
 
-        io.to(user_room_id).emit("message",`username:${msg}`);
+        io.to(s_id).emit("message",`${s_id}  :  ${msg}`);
         callback();
     });
 

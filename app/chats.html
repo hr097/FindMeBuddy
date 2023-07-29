@@ -35,15 +35,17 @@
     <link href="./css/style.css" rel="stylesheet">
     <link href="./css/map.css" rel="stylesheet">
 
+    <script src="socket.io/socket.io.js"></script>
+
 </head>
 
 <body>
     <navbar class="nav">
         <!-- <img src="./assets/RideX.png" alt="logo" class="logo"> -->
-        <a class="active" href="index.html" ><img src="./assets/favicon_black_removebg.png" alt="FindMeBuddy logo" class="logo"></a>
+        <a href="index.html" ><img src="./assets/favicon_black_removebg.png" alt="FindMeBuddy logo" class="logo"></a>
         <div class="topnav">
             <a href="profile.html">Profile</a>
-            <a href="chats.html">Chats</a>
+            <a class="active" href="chats.html">Chats</a>
             <!-- <a href="rating.html">Rating</a>
             <a href="otp.html">OTP</a>
             <a href="signup.html">Sign Up</a>
@@ -51,40 +53,23 @@
           </div>
     </navbar>
 
-    <div id="input_dis" class="container col-md-3 map_container">
-            <form class="mt-3">
-              <label class="select_route" for="search_distance">Choose searching area:</label>
-
-                <select class="form-control" name="search_distance" id="search_distance">
-                  <option selected="true" value="10">10 metre nearby</option>
-                  <option value="50">50 metre nearby</option>
-                  <option value="100">100 metre nearby</option>
-                  <option value="1000">1000 metre nearby</option>
-                </select>
-               <button type="button" id="search_buddy" onclick="calcRoute();">Search nearby buddies</button>
-
-                <div id="output"></div>
-            </form>
-        </div>
-    </div>
-
-
-    <div class="container-fluid">
-      <i class="fa-solid fa-angle-down down_arrow" id="arrow_t"></i>
-      <div id="googleMap">
-          
-      </div>
-
-    </div>
-
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCSNW7Pt4PQZ7qxeT6rrTAQoBqpcw51KBE&libraries=places"></script>
-
+    <p id="received_text_area">No Message!</p>
+    <br>
+    <hr>
+    <h1 id="my_id"></h1>
+    <br>
+    <label for="send_socket_id">send socket id:</label><br>
+    <input type="text" id="send_socket_id" name="socket_id" autocomplete="off" placeholder="Enter socket_id here"><br><br>
+    <label for="msgbox">ChatBox:</label><br>
+    <input type="text" id="msgbox" name="message" autocomplete="off" placeholder="Enter message here"><br><br>
+    <input onclick="send_msg()" type="button" value="Send">
 </body>
 
 <!-- local resource -->
 
 <!-- js -->
-<script src="./js/map.js"></script>
+
+<script src="./js/chat.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
 <!--jQuery-->

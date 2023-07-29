@@ -22,16 +22,16 @@
     z-index: 9;
     background-color: #ffffff;
     /* width: 28%; */
-    height: 500px;
-    left: 3%;
-    top: 12%;
+    height: auto;
+    left: 37%;
+    top: 35%;
     border-radius: 16px;
 }
 
 .select_route{
-    font-size:25px;
+    font-size:18px;
     font-weight:bold;
-
+    margin:10px;
 }
 
 input[type="text"]{
@@ -48,9 +48,9 @@ input[type="text"]{
   }
 
 .down_arrow{
-    font-size: 25px;
+    font-size: 30px;
     position: absolute;
     z-index: 1;
-    top: 75px;
-    left: 170px;
+    top: 100px;
+    left: 48%;
 }

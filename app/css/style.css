@@ -35,7 +35,7 @@ input[type="text"],input[type="password"],input[type="number"],input[type="date"
     border-radius: 8px;
     border:0px;
     background-color:#eeeeee;
-    color:#6b6b6b;
+    color:#181818;
     margin-bottom: 12px;
 }
 
@@ -226,6 +226,12 @@ input[type="radio"]:checked{
   .topnav a.active {
     background-color: rgb(0, 0, 0)000;
     color: rgb(9, 208, 9);
+  }
+
+
+  #search_distance
+  {
+    border:1px solid black;
   }
 
 /* till here extra by hr097 --*/
