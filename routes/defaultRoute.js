@@ -1,4 +1,4 @@
-const {get_socket_id} = require("./index.js");
+const {get_socket_id} = require("../index.js");
 const express = require("express")
 const router = express.Router();
 
@@ -12,7 +12,7 @@ const {defaultRouteRun} = require("../controllers/defaultController.js")
 
 //* DEFAULT ROUTE
 
-const s_id = get_socket_id();
+const s_id = get_socket_id;
 
 //* FUNCTIONS
 const results = {
