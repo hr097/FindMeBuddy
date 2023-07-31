@@ -21,7 +21,7 @@ const registerUser = asyncHandler(async (req,res) => {
             "app_status":false 
         });
     }
-
+    
      const{name,dob,gender,mobile,email}= req.body;
      
      if(!mobile || !name || !email || !gender || !dob)

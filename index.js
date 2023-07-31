@@ -1,99 +1,127 @@
-const app = require("./express-app.js"); //express app
-const {updateUserSocketConnectionID} = require("./code.js"); //code library
+//* EXPRESS-APP
+const app = require("./express-app.js");
+
+//* DATABASE  & ENV
+const dotenv = require("dotenv").config();
 const dbConnect = require("./config/dbconnection.js");  //database
 
+//* SESSION
+// const session=require("express-session"); 
+// var cookieParser = require('cookie-parser'); 
+// const thirtyMinutes= 1800000;//milliseconds given
 
-var user_app_socket_id = "";
+// var sess = {
+//     secret: process.env.SESSION_SECRET,
+//     saveUninitialized: true,
+//     cookie:{maxAge: thirtyMinutes,sameSite:true,httpOnly:true},
+//     resave: false
+// }
 
-const get_socket_id = ()=>{return user_app_socket_id;}
+// if(app.get('env') === 'production') { //for development environment sessions security
+//     app.set('trust proxy', 1) // trust first proxy
+//     sess.cookie.secure = true // serve secure cookies
+// }
+    
+// app.use(session(sess))
+// app.use(cookieParser());
 
+//* SOCKET 
 const socket = require("socket.io");     
 const http = require('http');
-const session=require("express-session"); 
-var cookieParser = require('cookie-parser');     
-const Filter = require("bad-words"); 
-const dotenv = require("dotenv").config();           
-
-const port = process.env.PORT || 5001;
-const thirtyMinutes= 1800000;//milliseconds given
+// const Filter = require("bad-words"); 
 const server = http.createServer(app);
 const io = socket(server);
 
-//* SESSION
-
-
-var sess = {
-    secret: process.env.SESSION_SECRET,
-    saveUninitialized: true,
-    cookie:{maxAge: thirtyMinutes,sameSite:true,httpOnly:true},
-    resave: false
-}
-
-if(app.get('env') === 'production') { //for development environment sessions security
-    app.set('trust proxy', 1) // trust first proxy
-    sess.cookie.secure = true // serve secure cookies
-}
-    
-app.use(session(sess))
-app.use(cookieParser());
-
-
-//* SOCKET 
-
 io.on("connection",(socket) => {
-
-    user_app_socket_id = socket.id;
 
     console.log(`${socket.id} is connected !`);
 
-    updateUserSocketConnectionID(username,socket.id);
-
-    socket.on("join",(username,user_room_id,callback) => {
+    socket.on("request_to_connect",(username,s_s_i,rec_socket_id,callback) => {
         
-        //const {error,user} = addUser({id:socket.id,username,room});
-
-        if(error){
-           return callback(error);
+        try
+        {
+        // socket.join(user_room_id);
+        // socket.emit("message","Hey! Let's talk...");
+        // socket.broadcast.to(user_room_id).emit("message",`${username} wants to interact !`);
+        // socket.join(socket.id+rec_socket_id);
+        //socket.emit("receive_message",`${username} Hey! Let's talk... !`);
+        //socket.broadcast.to(user_room_id).emit("message",`${username} wants to interact !`);
+        io.to(rec_socket_id).emit("request_received",s_s_i,`${username}  :  Hey! Wanna chat...`);
         }
-
-        socket.join(user_room_id);
-        socket.emit("message","Hey! Let's talk...");
-        socket.broadcast.to(user_room_id).emit("message",`${username} wants to interact !`);
-        
-        // io.to(user.room).emit("getAlllUser",{
-        //     room:user.room,
-        //     users:getUserInRoom(user.room)
-        // });
+        catch (err) {
+            return callback("Unable to connect to user!");
+        }
     });
 
-    socket.on("sendMessage",(s_id,msg,callback) => {
-        //const user = socket.id;
+    socket.on("request_decision",(username,rec_socket_id,message,callback) => {
+        
+        try
+        {
+        var room = socket.id+rec_socket_id;
+        console.log(room);
+        // socket.join(user_room_id);
+        // socket.emit("message","Hey! Let's talk...");
+        // socket.broadcast.to(user_room_id).emit("message",`${username} wants to interact !`);
+        socket.join(room);
+        socket.emit("receive_message",`${username} is coming!`);
+        io.to(rec_socket_id).emit("request_accepted",room,`${username}  :  ${message} and please join ${room}`);
+       // socket.broadcast.to(room).emit("request_accepted",`${username} wants to interact !`);
+        
+        }
+        catch (err) {
+            return callback("Unable to connect to user!");
+        }
+    });
+
+    socket.on("accept_join",(username,room,callback) => {
+        
+        try
+        {
+        // var room = socket.id+rec_socket_id;
+        // console.log(room);
+        // socket.join(user_room_id);
+        // socket.emit("message","Hey! Let's talk...");
+        // socket.broadcast.to(user_room_id).emit("message",`${username} wants to interact !`);
+        socket.join(room);
+        socket.emit("receive_message",`${username} is coming!`);
+        io.to(room).emit("receive_message",`both joined! connected`);
+       // socket.broadcast.to(room).emit("request_accepted",`${username} wants to interact !`);
+        
+        }
+        catch (err) {
+            return callback("Unable to connect to user!");
+        }
+    });
+
+    socket.on("send_message",(username,receiver_socket_id,msg,callback) => {
+        try
+        {
+        //socket.join(receiver_socket_id);
+        io.to(receiver_socket_id).emit("receive_message",`${username}  :  ${msg}`);
+        }
+        catch(err)
+        {
+            return callback("Unable to send message to user!");
+        }
        
-        //const filter = new Filter();
-        
-        // if(filter.isProfane(msg)){
-        //     callback("Not Valid Input !");
-        // }
-
-        io.to(s_id).emit("message",`${s_id}  :  ${msg}`);
-        callback();
     });
 
-    socket.on('disconnect',(username,user_room_id) => {
+    socket.on('disconnect',(callback) => {
 
-        const user = socket.id;// need to remove so next time can't send message
+        //const user = socket.id;// need to remove so next time can't send message
+        console.log(`${socket.id} is disconnected ! =>`);
+         //updateUserSocketConnectionID(username,"-");
 
-        updateUserSocketConnectionID(username,"-");
-
-        if(user){
-            io.to(user_room_id).emit("message",`${username} is left !`);
-        }
+        // if(user){
+           //  io.to(socket.id).emit("receive_message",`${socket.id} is left !`);
+        // }
     });
 
 });
 
 
-//* SERVER STARTED
+//* SERVER START
+const port = process.env.PORT || 5001;
 server.listen(port,(err) => {
     if(err)
     { 
@@ -103,5 +131,3 @@ server.listen(port,(err) => {
     console.log(`Server is Listening on port ${port}`);
     dbConnect();
 });
-
-module.exports  = {get_socket_id}

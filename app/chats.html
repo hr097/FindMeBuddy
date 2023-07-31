@@ -54,15 +54,18 @@
     </navbar>
 
     <p id="received_text_area">No Message!</p>
+    <div id="request_area"></div>
     <br>
     <hr>
     <h1 id="my_id"></h1>
     <br>
-    <label for="send_socket_id">send socket id:</label><br>
+    <label for="send_socket_id">receiver socket id:</label><br>
     <input type="text" id="send_socket_id" name="socket_id" autocomplete="off" placeholder="Enter socket_id here"><br><br>
+    <label for="username">Username:</label><br>
+    <input type="text" id="username" name="username" autocomplete="off" placeholder="Enter username here"><br><br>
     <label for="msgbox">ChatBox:</label><br>
     <input type="text" id="msgbox" name="message" autocomplete="off" placeholder="Enter message here"><br><br>
-    <input onclick="send_msg()" type="button" value="Send">
+    <input onclick="request_to_connect()" type="button" value="Send">
 </body>
 
 <!-- local resource -->
