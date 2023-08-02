@@ -1,7 +1,7 @@
 
 var User = {
-    latitude:0.00,
-    longitude:0.00
+    latitude:22.10,
+    longitude:78.20
 };
 
 var geoSettings = {
@@ -216,6 +216,8 @@ if(navigator.geolocation)
     {  
         const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
         navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings);
+
+       
     }
     else if(result.state === "denied")
     {
@@ -227,17 +229,20 @@ if(navigator.geolocation)
         alert("Something went wrong!!!");
     }
 
-}).catch((e)=>{
-    console.log("error is there: "+e);
-});
+    }).catch((e)=>{
+        console.log("error is there: "+e);
+    });
+
+
 }
 else
 {
     alert("Geolocation is not supported by this browser.");
 }
 
-})();
+});
 
+setLocationOnMap();
 
 
 
