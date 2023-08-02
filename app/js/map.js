@@ -40,6 +40,8 @@ function setLocationOnMap(){
     marker.icon.size = new google.maps.Size(100, 100);
     marker.setMap(map);
 
+    alert("map loded");
+
     //add zooming listener
     map.addListener('zoom_changed', function() {
         switch(map.zoom)
