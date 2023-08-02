@@ -1,7 +1,7 @@
 
 var User = {
-    latitude:0.00,
-    longitude:0.00
+    latitude:22.23,
+    longitude:72.88
 };
 
 var geoSettings = {
@@ -215,7 +215,9 @@ if(navigator.geolocation)
     else if(result.state === "prompt")
     {  
         const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-        navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
+       // navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
+
+       getLocationCoordinates();
     }
     else if(result.state === "denied")
     {
