@@ -1,7 +1,7 @@
 
 var User = {
-    latitude:22.10,
-    longitude:78.20
+    latitude:0.00,
+    longitude:0.00
 };
 
 var geoSettings = {
@@ -217,7 +217,6 @@ if(navigator.geolocation)
         const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
         navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings);
 
-       
     }
     else if(result.state === "denied")
     {
@@ -240,9 +239,8 @@ else
     alert("Geolocation is not supported by this browser.");
 }
 
-});
+})();
 
-setLocationOnMap();
 
 
 
