@@ -1,7 +1,7 @@
 
 var User = {
-    latitude:22.23,
-    longitude:72.88
+    latitude:0.00,
+    longitude:0.00
 };
 
 var geoSettings = {
