@@ -4,43 +4,50 @@ var User = {
     longitude:0.00
 };
 
-function setLocationOnMap(){ 
+var geoSettings = {
+    enableHighAccuracy: true,
+    maximumAge        : 30000,
+    timeout           : 20000
+  };
 
+const setLocationOnMap = ()=>{ 
 
-   // alert("Updated User Location: "+(User.latitude) + " " + (User.longitude));
-    var myLatLng = { lat: (User.latitude), lng: (User.longitude)};
-    //set map options
-    var mapOptions = {
-    center: myLatLng,
-    zoom: 18,
-    mapTypeId: google.maps.MapTypeId.ROADMAP,
-    streetViewControl: false,
-    mapTypeControl: false,
-    };
+    var UsersLatLong = { lat: (User.latitude), lng: (User.longitude)};
+    
+    //set avatar
 
-    const icon = {
+    const UserIcon = {
         url: "../../assets/myicon.jpg", // url
         scaledSize: new google.maps.Size(50, 50), // scaled size
         origin: new google.maps.Point(0,0), // origin
         anchor: new google.maps.Point(0, 0) // anchor
     };
 
+    //set map options
+    var mapOptions = {
+    center: UsersLatLong,
+    zoom: 18,
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    streetViewControl: false,
+    mapTypeControl: false,
+    };
+
+    
+    //create and load map
+    var map = new google.maps.Map(document.getElementById('googleMap'), mapOptions);
+
     // Create a marker with a custom icon
 
     const marker = new google.maps.Marker({
-        position: myLatLng,
+        position: UsersLatLong,
         map: map,
-        icon,
+        icon:UserIcon
     });
 
-    //create map
-    var map = new google.maps.Map(document.getElementById('googleMap'), mapOptions);
-
+    //load marker
     marker.icon.scaledSize = new google.maps.Size(50, 50);
     marker.icon.size = new google.maps.Size(100, 100);
     marker.setMap(map);
-
-    alert("map loded");
 
     //add zooming listener
     map.addListener('zoom_changed', function() {
@@ -173,23 +180,65 @@ function setLocationOnMap(){
             break;
         }
       });
-
-
-
-    //create a DirectionsService object to use the route method and get a result for our request
-    var directionsService = new google.maps.DirectionsService();
-
-    //create a DirectionsRenderer object which we will use to display the route
-    var directionsDisplay = new google.maps.DirectionsRenderer();
-
-    //bind the DirectionsRenderer to the map
-    directionsDisplay.setMap(map);
-
-
 }
-const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-const getUserLocation = () => {(navigator.geolocation)?navigator.geolocation.watchPosition(getLocationCoordinates):alert("Geolocation is not supported by this browser.");}
-getUserLocation();
+
+const showError = (error)=>{
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        "You have denied location permission which is required for this application in order to work.Please enable it manually in browser settings."
+        break;
+      case error.POSITION_UNAVAILABLE:
+       alert("Location information is unavailable.")
+        break;
+      case error.TIMEOUT:
+       alert("The request to get user location timed out.")
+        break;
+      case error.UNKNOWN_ERROR:
+       alert("An unknown error occurred.")
+        break;
+    }
+}
+
+(function getUserLocation(){
+
+if(navigator.geolocation)
+{
+    navigator.permissions.query({ name: "geolocation" }).then((result) => {
+
+    alert(result.state);
+    if (result.state === "granted") {
+
+    const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
+    navigator.geolocation.watchPosition(getLocationCoordinates,showError)
+       
+    } 
+    else if(result.state === "prompt")
+    {  
+        const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
+        navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
+    }
+    else if(result.state === "denied")
+    {
+        alert("You have "+result.state+" location permission which is required for this application in order to work.Please enable it manually in browser settings.");
+        //repeatatively ask for permission code here
+    }
+    else
+    {
+        alert("Something went wrong!!!");
+    }
+
+});
+}
+else
+{
+    alert("Geolocation is not supported by this browser.");
+}
+
+})();
+
+
+
+
 
 // setTimeout(setInterval(getUserLocation,5000),5000);
 
@@ -225,7 +274,7 @@ getUserLocation();
 //             //delete route from map
 //             directionsDisplay.setDirections({ routes: [] });
 //             //center map in London
-//             map.setCenter(myLatLng);
+//             map.setCenter(UsersLatLong);
 
 //             //show error message
 //             output.innerHTML = "<div class='alert-danger'><i class='fas fa-exclamation-triangle'></i> Could not retrieve driving distance.</div>";
