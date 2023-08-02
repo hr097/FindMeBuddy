@@ -199,6 +199,11 @@ const showError = (error)=>{
     }
 }
 
+mapAccessOk = () =>{
+    alert("I am started");
+    const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
+    navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings);
+}
 (function getUserLocation(){
 
 if(navigator.geolocation)
@@ -208,15 +213,11 @@ if(navigator.geolocation)
     alert(result.state);
     if (result.state === "granted") {
 
-    const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-    navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
-       
+        mapAccessOk();
     } 
     else if(result.state === "prompt")
     {  
-        const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-        navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings);
-
+        mapAccessOk();
     }
     else if(result.state === "denied")
     {
