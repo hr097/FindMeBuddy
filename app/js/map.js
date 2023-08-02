@@ -209,15 +209,13 @@ if(navigator.geolocation)
     if (result.state === "granted") {
 
     const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-    navigator.geolocation.watchPosition(getLocationCoordinates,showError)
+    navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
        
     } 
     else if(result.state === "prompt")
     {  
         const getLocationCoordinates = (position)=>{User.latitude = position.coords.latitude;User.longitude = position.coords.longitude;setLocationOnMap();}
-       // navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings)
-
-       getLocationCoordinates();
+        navigator.geolocation.watchPosition(getLocationCoordinates,showError,geoSettings);
     }
     else if(result.state === "denied")
     {
