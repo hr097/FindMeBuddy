@@ -227,6 +227,8 @@ if(navigator.geolocation)
         alert("Something went wrong!!!");
     }
 
+}).catch((e)=>{
+    console.log("error is there: "+e);
 });
 }
 else
