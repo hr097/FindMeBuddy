@@ -97,8 +97,16 @@
 <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
 
 <script type="text/javascript">
-  let arrow_side = 0;  // downside
+
+
+  let arrow_side = 1;  // downside
   $(document).ready(function(){
+
+    //intial value
+    $("#input_dis").hide();
+    $("#arrow_t").addClass("fa-angle-down");
+    $("#arrow_t").removeClass("fa-angle-up");
+
     $("#arrow_t").click(function(){
       $("#input_dis").toggle();
       
