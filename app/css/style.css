@@ -203,7 +203,7 @@ input[type="radio"]:checked{
   } */
 
 
-  /* extra by hr097 --*/
+  /* extra by hr097 for nav bar --*/
  .topnav {
     overflow: hidden;
     background-color: #000000;
@@ -233,9 +233,6 @@ input[type="radio"]:checked{
   {
     border:1px solid black;
   }
-
 /* till here extra by hr097 --*/
 
-
-/* map.css */
 

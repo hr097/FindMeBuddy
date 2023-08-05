@@ -1,6 +1,7 @@
-/*map*/
-#googleMap {
-    /* position:relative; */
+/*Google map*/
+
+/* #googleMap {
+    position:relative;
     width: 500px;
     height: 500px;
     position: relative;
@@ -14,7 +15,7 @@
     width: 100%;
     padding-top:100px;
 }
-/*output box*/
+
 #output {
     text-align: center;
     font-size: 2em;
@@ -25,17 +26,24 @@
     color: black;
 }
 
-.map_container {
+
+
+
+
+@media only screen and (max-width: 766px) {
+    .map_container{
+        width:93%;
+        height:45%;
+        margin-top: 25px;
+    }
+  }
+ */
+.down_arrow{
+    font-size: 30px;
     position: absolute;
-    z-index: 9;
-    background-color: #ffffff;
-    /* width: 28%; */
-    padding-top:30px;
-    padding-bottom:30px;
-    height: auto;
-    left: 37%;
-    top: 35%;
-    border-radius: 16px;
+    z-index: 1;
+    top: 100px;
+    left: 48%;
 }
 
 .select_route{
@@ -48,19 +56,35 @@ input[type="text"]{
     width: 100%;
 }   
 
-
-@media only screen and (max-width: 766px) {
-    .map_container{
-        width:93%;
-        height:45%;
-        margin-top: 25px;
-    }
-  }
-
-.down_arrow{
-    font-size: 30px;
+.map_container {
     position: absolute;
     z-index: 1;
-    top: 100px;
-    left: 48%;
+    background-color: #ffffff;
+    width: 28%;
+    padding-top:30px;
+    padding-bottom:30px;
+    height: auto;
+    left: 37%;
+    top: 35%;
+    border-radius: 16px;
+}
+
+#input_dis
+{
+    z-index:2;
+    margin: 10px;
+}
+
+/* map.css */
+
+#map { 
+    margin:5px;
+    height: 650px;
+    width: 100%; 
+    z-index: 0;
+}
+#map_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
