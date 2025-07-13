@@ -11,7 +11,8 @@
   <h3 align="center">FindMeBuddy!</h3>
 
   <p align="center">
-    A Real-time nearby user discovering chat application plateform.
+    A Real-time nearby people discovering secure chat application plateform.
+    <b><h1>PROJECT UNDER REDEVELOPMENT !!! </h1></b>b>
     <br />
   </p>
   <a href="https://findmebuddy.vercel.app">View Demo</a>
