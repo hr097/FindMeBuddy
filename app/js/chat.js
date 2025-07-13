@@ -11,7 +11,7 @@ socket.on("connect", () => {
     });
 
     socket.on("request_accepted", (room,msg) => {
-        alert(msg)
+        //alert(msg)
         document.getElementById("received_text_area").innerText = msg;
         socket.emit("accept_join",document.getElementById("username").value,room,(err) => {
             if (err) {

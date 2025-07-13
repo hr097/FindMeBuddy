@@ -35,8 +35,8 @@ const checkAppStatus = async (req,res) => {
         };
         
     }
-    res.header("Content-Type",'application/json');
-    res.send(JSON.stringify(results, null, 4));
+    res.setHeader("Content-Type",'application/json');
+    res.end(JSON.stringify(results, null, 4));
 };
 
 const defaultRoute = express.static(path.join(__dirname,"./app"));

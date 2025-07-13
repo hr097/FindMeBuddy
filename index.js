@@ -129,5 +129,5 @@ server.listen(port,(err) => {
          return err;
     }
     console.log(`Server is Listening on port ${port}`);
-    dbConnect();
+    //dbConnect();
 });

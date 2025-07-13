@@ -209,7 +209,7 @@ if(navigator.geolocation)
 {
     navigator.permissions.query({ name: "geolocation" }).then((result) => {
 
-    alert(result.state);
+    //alert(result.state);
     if (result.state === "granted") {
 
         startMapProcess();
