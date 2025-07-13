@@ -5,7 +5,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="./asset/images/find_me_buddy_white.png" alt="FindMeBuddy Logo" width="150" height="150">
+    <img src="./app/assets/find_me_buddy_greenremovebg.png" alt="FindMeBuddy Logo" width="150" height="150">
   </a>
 
   <h3 align="center">FindMeBuddy!</h3>
