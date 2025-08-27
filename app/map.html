@@ -1,71 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-  <meta charset="utf-8"/>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"/> -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#000000" />
-
-    <!-- Search Engine use --->
-    <meta name="FindMeBuddy" content="Team FindMeBuddy"/>
-    <meta name="description" content="It's a social media app which lets you discover friends who are nearby to you in real-time. chat's are completely anonymous and never stored. Moreover, it's an entertaining and user engaging application who lets you discover your potential of interaction with unknown people."/>
-    <meta name="key words" content="chat,privacy,find,buddy,friend,discover,people,nearby,maps,location"/>
-
-    <meta name="google-site-verification" content="YKLJXdgbsyIvqhRuoHDyFMLeN-tjRe3W1rL5w13AULg" />
-
-    <!-- Fav Icon-->
-    <title>Find Me Buddy!</title>
-    <link rel="icon" type="image/x-icon" href="./assets/find_me_buddy_greenremovebg.png">
-
-    <!-- bootstrap -->
-
-    <!--icons-->
-
-
-    <!--google fonts-->
-
-    <!-- css -->
-    <style type="text/css">
-    #map { 
-        height: 500px;
-        width: 800px; 
-        
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AR Direction</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background: black;
     }
-    #map_container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding-top:100px;
+
+    video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
     }
-    </style>
 
-    <link defere="true" rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""/>
+    #arrow {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 120px;
+      height: 120px;
+      margin-left: -60px;
+      margin-top: -60px;
+      z-index: 10;
+      transform-origin: center center;
+      transition: transform 0.1s linear;
+    }
 
+    #distance {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+    }
+  </style>
 </head>
 <body>
-    <div id="map_container">
-      <div id="map">
+  <!-- Live camera -->
+  <video id="camera" autoplay playsinline></video>
 
-      </div>
-    </div>
+  <!-- Direction Arrow -->
+  <img id="arrow" src="https://cdn-icons-png.flaticon.com/512/545/545682.png" alt="Direction Arrow" />
+
+  <!-- Distance display -->
+  <div id="distance">Calculating distance...</div>
+
+  <script>
+    // ---------- CONFIGURATION ----------
+    const urlParams = new URLSearchParams(window.location.search);
+    const locParam = urlParams.get("location");
+
+    // Default destination → Marvel Stadium Gate 3
+    const destination = locParam
+      ? JSON.parse(locParam)
+      : { lat: -37.81645, long: 144.94760 };
+
+    let userLat = null;
+    let userLng = null;
+    let userHeading = 0;
+
+    const arrow = document.getElementById("arrow");
+    const distanceLabel = document.getElementById("distance");
+
+    // ---------- CAMERA SETUP ----------
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
+        document.getElementById("camera").srcObject = stream;
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        alert("Camera access is required for AR navigation.");
+      }
+    }
+
+    // ---------- CALCULATE BEARING ----------
+    function calculateBearing(lat1, lon1, lat2, lon2) {
+      const toRad = deg => (deg * Math.PI) / 180;
+      const toDeg = rad => (rad * 180) / Math.PI;
+
+      const dLon = toRad(lon2 - lon1);
+      const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+      const x =
+        Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+        Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    // ---------- CALCULATE DISTANCE ----------
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // meters
+      const φ1 = (lat1 * Math.PI) / 180;
+      const φ2 = (lat2 * Math.PI) / 180;
+      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a =
+        Math.sin(Δφ / 2) ** 2 +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c;
+    }
+
+    // ---------- UPDATE ARROW ----------
+    function updateArrow() {
+      if (userLat == null || userLng == null) return;
+
+      const bearing = calculateBearing(userLat, userLng, destination.lat, destination.long);
+      const angle = bearing - userHeading;
+      arrow.style.transform = `rotate(${angle}deg)`;
+
+      const dist = calculateDistance(userLat, userLng, destination.lat, destination.long);
+      distanceLabel.innerText = `${dist < 1000 ? dist.toFixed(0) + " m" : (dist / 1000).toFixed(2) + " km"} away`;
+    }
+
+    // ---------- GPS TRACKING ----------
+    if (!locParam) {
+      navigator.geolocation.watchPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          updateArrow();
+        },
+        err => console.error("GPS error:", err),
+        { enableHighAccuracy: true }
+      );
+    } else {
+      // Override location for simulation
+      const parsed = JSON.parse(locParam);
+      userLat = parsed.lat;
+      userLng = parsed.long;
+      updateArrow();
+    }
+
+    // ---------- COMPASS HEADING ----------
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener("deviceorientationabsolute", e => {
+        if (e.alpha !== null) {
+          userHeading = e.alpha;
+          updateArrow();
+        }
+      });
+
+      window.addEventListener("deviceorientation", e => {
+        if (e.alpha !== null) {
+          userHeading = e.alpha;
+          updateArrow();
+        }
+      });
+    }
+
+    // ---------- INIT CAMERA ----------
+    startCamera();
+  </script>
 </body>
-    <!--Js-->
-    <script defere="true" src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""></script>
-
-    <script>
-    var map = L.map('map').setView([21.78, 72.88], 13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-    }).addTo(map);
-    </script>
-
-    <script src="./js/map2.js"></script>
-
 </html>
