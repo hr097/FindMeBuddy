@@ -2,39 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Marvel Stadium – Live Walk</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Marvel Stadium Live Walk</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
 
   <!-- Leaflet -->
-  <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Leaflet Routing Machine (LRM) -->
-  <link href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" rel="stylesheet">
+  <!-- Leaflet Routing Machine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
   <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
   <style>
     html, body, #map { height: 100%; margin: 0; }
-    /* User marker: pulse dot */
+    /* Pulsing user marker */
     .user-dot {
-      width: 16px; height: 16px; border-radius: 50%;
-      background: #0ea5e9; border: 2px solid #fff;
-      box-shadow: 0 0 8px rgba(0,0,0,.35);
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #0ea5e9;
+      border: 2px solid white;
+      box-shadow: 0 0 10px rgba(14,165,233,0.6);
       position: relative;
     }
     .user-dot::after {
       content: "";
-      position: absolute; inset: -8px;
+      position: absolute;
+      left: -8px; top: -8px;
+      width: 32px; height: 32px;
       border-radius: 50%;
-      border: 2px solid rgba(14,165,233,.5);
-      animation: pulse 1.5s infinite;
+      border: 2px solid rgba(14,165,233,0.35);
+      animation: pulse 1.4s infinite;
     }
-    @keyframes pulse { 
-      0% { transform: scale(0.5); opacity: .8; }
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: .9; }
       100% { transform: scale(1.4); opacity: 0; }
     }
-
-    /* Hide LRM’s default panel */
+    /* Hide default routing panel */
     .leaflet-routing-container { display: none; }
   </style>
 </head>
@@ -42,112 +45,107 @@
   <div id="map"></div>
 
   <script>
-    // --- 1) Target (Gate-03 by default, override via ?lat=&long=) ---
-    // Gate-03 / Stadium Square approx (Marvel Stadium, Docklands)
-    // Adjust to your precise gate coordinates if you have them.
-    const GATE03_DEFAULT = { lat: -37.816528, lng: 144.947266 };
-
-    const q = new URLSearchParams(location.search);
-    const qpLat  = parseFloat(q.get("lat"));
-    const qpLong = parseFloat(q.get("long"));
-    const target = (!Number.isNaN(qpLat) && !Number.isNaN(qpLong))
-      ? { lat: qpLat, lng: qpLong }
+    // --- 1) Target location ---
+    const GATE03_DEFAULT = { lat: -37.816528, lng: 144.947266 }; // Marvel Stadium Gate-03
+    const params = new URLSearchParams(location.search);
+    const qpLat  = parseFloat(params.get("lat"));
+    const qpLng  = parseFloat(params.get("long") || params.get("lng"));
+    const target = (!Number.isNaN(qpLat) && !Number.isNaN(qpLng))
+      ? { lat: qpLat, lng: qpLng }
       : GATE03_DEFAULT;
 
-    // --- 2) Base map ---
-    const map = L.map("map", { zoomControl: true }).setView([target.lat, target.lng], 17);
-
+    // --- 2) Init map ---
+    const map = L.map("map").setView([target.lat, target.lng], 17);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
     }).addTo(map);
 
-    // Target marker (Gate or param location)
-    const targetMarker = L.marker([target.lat, target.lng], {
-      title: "Target (Gate-03)"
-    }).addTo(map).bindPopup("Target (Gate-03)").openPopup();
+    // --- 3) Target marker ---
+    const targetMarker = L.marker([target.lat, target.lng], { title: "Target" })
+      .addTo(map)
+      .bindPopup("Target Location")
+      .openPopup();
 
-    // --- 3) User marker (live) ---
-    const userIcon = L.divIcon({ className: "user-dot", iconSize: [16,16], iconAnchor: [8,8] });
-    const userMarker = L.marker([target.lat, target.lng], { icon: userIcon }).addTo(map);
-    let haveUserFix = false;
-
-    // --- 4) Walking route (OSRM via Leaflet Routing Machine) ---
+    // --- 4) Routing control ---
     const routing = L.Routing.control({
       waypoints: [],
       addWaypoints: false,
       draggableWaypoints: false,
       fitSelectedRoutes: false,
       show: false,
+      createMarker: () => null,
       router: L.Routing.osrmv1({
         serviceUrl: "https://router.project-osrm.org/route/v1",
         profile: "foot"
       }),
-      lineOptions: { styles: [{ weight: 5, opacity: 0.9 }] },
-      createMarker: () => null // we supply our own markers
+      lineOptions: { styles: [{ weight: 5, opacity: 0.9, color: "#1e88e5" }] }
     }).addTo(map);
 
-    function setRoute(fromLatLng, toLatLng) {
-      routing.setWaypoints([ L.latLng(fromLatLng.lat, fromLatLng.lng), L.latLng(toLatLng.lat, toLatLng.lng) ]);
+    function setRoute(from, to) {
+      routing.setWaypoints([ L.latLng(from.lat, from.lng), L.latLng(to.lat, to.lng) ]);
     }
 
-    // --- 5) Live tracking: update every ~5s & re-route on changes ---
+    // --- 5) User marker (only after we have real GPS coords) ---
+    let userMarker = null;
+    const userIcon = L.divIcon({ className: "user-dot", iconSize: [16,16], iconAnchor: [8,8] });
+
+    function updateUserMarker(lat, lng) {
+      if (!userMarker) {
+        userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+        userMarker.bindPopup("You are here");
+      } else {
+        userMarker.setLatLng([lat, lng]);
+      }
+    }
+
+    // --- 6) Live tracking ---
+    let haveUserFix = false;
     let lastRerouteAt = 0;
-    const REROUTE_INTERVAL_MS = 5000;
+    const REROUTE_INTERVAL = 5000;
 
     function maybeReroute(userLL) {
       const now = Date.now();
-      if (now - lastRerouteAt >= REROUTE_INTERVAL_MS) {
+      if (now - lastRerouteAt >= REROUTE_INTERVAL) {
         setRoute(userLL, target);
         lastRerouteAt = now;
       }
     }
 
-    // Keep both points in view initially, then follow the user
     function fitBoth(userLL) {
-      const b = L.latLngBounds([ [userLL.lat, userLL.lng], [target.lat, target.lng] ]);
-      map.fitBounds(b.pad(0.2));
+      const bounds = L.latLngBounds([
+        [userLL.lat, userLL.lng],
+        [target.lat, target.lng]
+      ]);
+      map.fitBounds(bounds.pad(0.2));
     }
 
-    // --- 6) Geolocation: watch user position ---
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported on this device/browser.");
-    } else {
-      const watchId = navigator.geolocation.watchPosition(
+    // --- 7) Start GPS immediately ---
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
         pos => {
           const userLL = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          userMarker.setLatLng(userLL);
+          updateUserMarker(userLL.lat, userLL.lng);
 
           if (!haveUserFix) {
             haveUserFix = true;
-            // first fix: show both markers and draw initial walking route
             fitBoth(userLL);
             setRoute(userLL, target);
             lastRerouteAt = Date.now();
           } else {
-            // follow user softly
-            map.panTo(userLL, { animate: true });
+            map.panTo([userLL.lat, userLL.lng], { animate: true });
             maybeReroute(userLL);
           }
         },
         err => {
-          console.error(err);
-          if (!haveUserFix) {
-            alert("Couldn’t get your location. Showing target only.");
-            map.setView([target.lat, target.lng], 17);
-          }
+          console.error("GPS error", err);
+          alert("Unable to access your location. Showing target only.");
+          map.setView([target.lat, target.lng], 17);
         },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000
-        }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
-
-      // Optional: stop watching when leaving page
-      window.addEventListener("beforeunload", () => {
-        try { navigator.geolocation.clearWatch(watchId); } catch {}
-      });
+    } else {
+      alert("Geolocation not supported by your browser.");
     }
   </script>
 </body>
