@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>AR Gate Arrow — Marvel Stadium</title>
+<style>
+  html,body { height:100%; margin:0; background:#000; font-family:system-ui,Segoe UI,Roboto; }
+  #cameraVideo {
+    position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0;
+    transform:scaleX(-1); /* mirror so arrow feels natural like front-facing UI in Live View */
+  }
+  #threeOverlay { position:fixed; inset:0; z-index:2; pointer-events:none; }
+  #hud {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:3;
+    background: rgba(0,0,0,0.45); color:#fff; padding:10px 14px; border-radius:10px; font-weight:600;
+    display:flex; gap:10px; align-items:center;
+  }
+  #hint {
+    position:fixed; left:12px; top:12px; z-index:3; background:rgba(0,0,0,0.45); color:#fff; padding:8px 10px;
+    border-radius:8px; font-size:13px;
+  }
+  #allowBtn { background:#0b84ff; color:#fff; border:none; padding:8px 10px; border-radius:8px; font-weight:700; }
+</style>
+</head>
+<body>
+  <video id="cameraVideo" autoplay playsinline muted></video>
+  <canvas id="threeOverlay"></canvas>
+
+  <div id="hint">Point your phone around. Tap Allow if requested.</div>
+
+  <div id="hud">
+    <div id="dist">-- m</div>
+    <div id="gateLabel">Gate 3</div>
+    <button id="allowBtn">Enable Motion (iOS)</button>
+  </div>
+
+<script src="https://unpkg.com/three@0.165.0/build/three.min.js"></script>
+
+<script>
+/* -------------------------
+   Configuration / Gate data
+   ------------------------- */
+const gates = {
+  "1": { lat: -37.81630, lng: 144.94700, label: "Gate 1" },
+  "2": { lat: -37.81650, lng: 144.94730, label: "Gate 2" },
+  "3": { lat: -37.81645, lng: 144.94760, label: "Gate 3" },
+  "4": { lat: -37.81670, lng: 144.94780, label: "Gate 4" }
+};
+const params = new URLSearchParams(location.search);
+const gateNum = params.get("gate") || "3";
+const gate = gates[gateNum] || gates["3"];
+document.getElementById("gateLabel").textContent = gate.label;
+
+/* -------------------------
+   Utility: distance + bearing
+   ------------------------- */
+function toRad(d){ return d * Math.PI/180; }
+function toDeg(r){ return r * 180/Math.PI; }
+
+function haversineDist(lat1, lon1, lat2, lon2){
+  const R = 6371e3;
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δφ = toRad(lat2-lat1), Δλ = toRad(lon2-lon1);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function bearingBetween(lat1, lon1, lat2, lon2){
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δλ = toRad(lon2 - lon1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360; // degrees from North
+}
+
+/* -------------------------
+   Camera video (background)
+   ------------------------- */
+const video = document.getElementById('cameraVideo');
+async function startCamera(){
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: {ideal: "environment"} }, audio:false });
+    video.srcObject = s;
+    await video.play();
+  }catch(err){
+    alert("Camera not available or blocked. Use a modern mobile browser and allow camera.");
+    console.error(err);
+  }
+}
+startCamera();
+
+/* -------------------------
+   Three.js scene
+   ------------------------- */
+const canvas = document.getElementById('threeOverlay');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(0, 1.6, 0); // approximate eye height in meters
+
+// Lighting
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5,10,7);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+// Arrow model: cylinder stem + cone tip
+const group = new THREE.Group();
+const stemGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 12);
+const stemMat = new THREE.MeshStandardMaterial({ color: 0x00b0ff, metalness:0.3, roughness:0.4 });
+const stem = new THREE.Mesh(stemGeo, stemMat);
+stem.position.y = 0; stem.rotation.x = Math.PI/2;
+group.add(stem);
+
+const tipGeo = new THREE.ConeGeometry(0.08, 0.25, 20);
+const tipMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness:0.2, roughness:0.5 });
+const tip = new THREE.Mesh(tipGeo, tipMat);
+tip.position.z = -0.5; tip.position.y = 0;
+group.add(tip);
+
+// a subtle ring under arrow to help depth perception
+const ringGeo = new THREE.TorusGeometry(0.18, 0.01, 8, 60);
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xffffff, opacity:0.9, transparent:true });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI/2;
+ring.position.y = -0.3;
+group.add(ring);
+
+// position group in front of camera initially
+group.position.set(0, 0, -3);
+scene.add(group);
+
+/* -------------------------
+   Resize renderer
+   ------------------------- */
+function onResize(){
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+/* -------------------------
+   Sensor data: geolocation + orientation
+   ------------------------- */
+let userLat = null, userLng = null, userHeading = 0; // heading in degrees (0 = north)
+const distEl = document.getElementById('dist');
+
+// track position
+if ('geolocation' in navigator) {
+  navigator.geolocation.watchPosition((p)=>{
+    userLat = p.coords.latitude;
+    userLng = p.coords.longitude;
+    updatePlacement();
+  }, (e)=>console.warn('geolocation error', e), { enableHighAccuracy:true, maximumAge:1000, timeout:5000 });
+} else {
+  alert('Geolocation not supported');
+}
+
+// device orientation (compass)
+function handleOrientation(e){
+  // Prefer absolute orientation if available
+  // e.alpha is rotation around z-axis (0..360) — in many browsers it is heading relative to magnetic north
+  // We take e.alpha as heading; on some devices you may need to use webkitCompassHeading
+  let alpha = e.alpha;
+  if (typeof e.webkitCompassHeading === 'number') {
+    alpha = e.webkitCompassHeading; // iOS Safari
+  }
+  if (alpha == null) return;
+  // convert to compass heading (degrees from north)
+  userHeading = (360 - alpha) % 360; // flip sign to get heading -> adjust by testing on real device
+  updatePlacement();
+}
+
+// iOS 13+ requires user gesture to request permission for deviceorientation
+const allowBtn = document.getElementById('allowBtn');
+allowBtn.addEventListener('click', async ()=>{
+  allowBtn.style.display = 'none';
+  if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+      else alert('Motion permission denied');
+    } catch(err){ console.warn(err); alert('Motion permission error'); }
+  } else {
+    // non iOS, just add listener
+    window.addEventListener('deviceorientation', handleOrientation, true);
+  }
+});
+
+// for many Androids deviceorientationabsolute is preferred
+window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+
+/* -------------------------
+   Placement math: position arrow in 3D scene based on bearing/distance
+   ------------------------- */
+function updatePlacement(){
+  if (userLat == null || userLng == null) return;
+
+  const dist = haversineDist(userLat, userLng, gate.lat, gate.lng); // meters
+  const bear = bearingBetween(userLat, userLng, gate.lat, gate.lng); // degrees from north
+
+  // relative angle from device heading
+  const rel = ( (bear - userHeading) + 540 ) % 360 - 180; // [-180..180], positive = rotate right
+  const relRad = rel * Math.PI/180;
+
+  // choose an appearance distance for arrow in meters (in scene units)
+  // we map real distance -> scene distance with clamp so arrow doesn't vanish far away
+  const sceneDist = Math.min(12, Math.max(2, dist / 10)); // 2m..12m mapping rough
+  // set arrow position relative to camera (camera at 0,0,0 looking -Z)
+  const x = Math.sin(relRad) * sceneDist;
+  const z = -Math.cos(relRad) * sceneDist;
+  const y = 0.0; // keep near eye level (you can adjust)
+
+  // place arrow smoothly
+  group.position.x += (x - group.position.x) * 0.2;
+  group.position.z += (z - group.position.z) * 0.2;
+  group.position.y += (y - group.position.y) * 0.1;
+
+  // rotate arrow to point forward in world space (we rotate group to face camera forward)
+  group.lookAt(0, group.position.y, 0); // make arrow face the camera origin; combine with rotation Y to align tip
+  // scale based on distance (closer = larger)
+  const scale = Math.max(0.7, Math.min(2.2, 6 / (sceneDist/2 + 0.01)));
+  group.scale.setScalar(scale);
+
+  // update distance HUD
+  distEl.textContent = (dist < 1000) ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(2)} km`;
+}
+
+/* -------------------------
+   Animation loop
+   ------------------------- */
+function animate(){
+  requestAnimationFrame(animate);
+  // subtle pulsing for attention
+  const t = performance.now() * 0.001;
+  ring.material.opacity = 0.6 + 0.25 * Math.sin(t * 3);
+  renderer.render(scene, camera);
+}
+animate();
+
+/* -------------------------
+   Helpful note: try to keep device flat sometimes
+   ------------------------- */
+// Auto hide allow button on non-iOS
+if (!DeviceOrientationEvent.requestPermission) allowBtn.style.display = 'none';
+
+</script>
+</body>
+</html>
