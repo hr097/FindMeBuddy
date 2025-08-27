@@ -1,163 +1,445 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AR 3D Direction</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      height: 100%;
-      background: black;
-    }
-    #distance {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 20px;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 10px 15px;
-      border-radius: 10px;
-      font-family: Arial, sans-serif;
-      z-index: 100;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>AR 3D Navigation — Final</title>
+<style>
+  html,body { height:100%; margin:0; background:#000; font-family:system-ui,Segoe UI,Roboto,Arial; -webkit-tap-highlight-color: transparent; }
+  /* camera background */
+  video#camera {
+    position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0;
+    background: #000;
+  }
+  /* Three canvas overlay */
+  canvas#three-canvas {
+    position:fixed; inset:0; width:100%; height:100%; z-index:1; pointer-events:none;
+    display:block;
+  }
+  /* HUD */
+  .hud {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:3;
+    background: rgba(0,0,0,0.46); color:#fff; padding:8px 12px; border-radius:10px;
+    font-weight:600; display:flex; gap:10px; align-items:center; font-size:15px;
+  }
+  .hint {
+    position:fixed; left:12px; top:12px; z-index:3; background:rgba(0,0,0,0.46); color:#fff;
+    padding:8px 10px; border-radius:8px; font-size:13px;
+  }
+  #allowMotion {
+    margin-left:8px; padding:8px 10px; border-radius:8px; background:#0b84ff; color:#fff; border:none;
+    font-weight:700;
+  }
+  .debug {
+    position:fixed; right:12px; top:12px; z-index:3; background:rgba(0,0,0,0.6); color:#fff; padding:8px 10px; border-radius:8px;
+    font-size:13px; line-height:1.4; display:none;
+  }
+  .debug.visible { display:block; }
+</style>
 </head>
 <body>
-  <div id="distance">Calculating distance...</div>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <!-- Camera -->
+  <video id="camera" autoplay playsinline muted></video>
+  <!-- Three.js canvas -->
+  <canvas id="three-canvas"></canvas>
 
-  <script>
-    // ---------- URL PARAMS ----------
-    const urlParams = new URLSearchParams(window.location.search);
-    const locParam = urlParams.get("location");
+  <div class="hint" id="hint">Point phone, allow camera & motion when prompted</div>
 
-    // Default destination → Marvel Stadium Gate 3
-    const destination = locParam
-      ? JSON.parse(locParam)
-      : {"lat": -37.926842340381, "long": 145.11908574083};
+  <div class="hud" id="hud">
+    <div id="gateLabel">Gate ?</div>
+    <div id="distLabel">--</div>
+    <button id="allowMotion" style="display:none">Enable Motion</button>
+  </div>
 
-    let userLat = null;
-    let userLng = null;
-    let userHeading = 0;
+  <div class="debug" id="debugBox"></div>
 
-    const distanceLabel = document.getElementById("distance");
+  <script src="https://unpkg.com/three@0.165.0/build/three.min.js"></script>
 
-    // ---------- THREE.JS SETUP ----------
-    const scene = new THREE.Scene();
+<script>
+/* -------------------------
+   Params, gates, helpers
+   ------------------------- */
+const url = new URL(location.href);
+const params = url.searchParams;
+const debugOn = params.get('debug') === '1' || params.get('debug') === 'true';
 
-    // Camera → positioned like AR
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(0, 0, 0);
+// list of approximate gates (format you asked for)
+const gates = {
+  "1": { "lat": -37.81630, "long": 144.94700 },
+  "2": { "lat": -37.81650, "long": 144.94730 },
+  "3": { "lat": -37.81645, "long": 144.94760 },
+  "4": { "lat": -37.81670, "long": 144.94780 },
+  "5": { "lat": -37.81685, "long": 144.94800 },
+  "6": { "lat": -37.81675, "long": 144.94820 },
+  "7": { "lat": -37.81660, "long": 144.94810 },
+  "8": { "lat": -37.81655, "long": 144.94740 },
+  "9": { "lat": -37.81650, "long": 144.94720 }
+};
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+// test location: Coles Clayton (as requested)
+const colesClayton = { lat: -37.926842340381, long: 145.11908574083 };
 
-    // Transparent background for live camera
-    renderer.setClearColor(0x000000, 0);
+// choose destination: priority -> gate param, location param, defaults to gate 3
+let destination = null;
+if (params.get('gate')) {
+  const g = params.get('gate');
+  if (gates[g]) destination = { lat: gates[g].lat, long: gates[g].long, label: `Gate ${g}` };
+}
+if (!destination && params.get('location')) {
+  destination = parseLocationParam(params.get('location'));
+  destination.label = destination.label || 'Destination';
+}
+if (!destination && params.get('destLat') && params.get('destLong')) {
+  destination = { lat: parseFloat(params.get('destLat')), long: parseFloat(params.get('destLong')), label: 'Destination' };
+}
+if (!destination) {
+  destination = { lat: gates['3'].lat, long: gates['3'].long, label: 'Gate 3' };
+}
 
-    // 3D Arrow
-    const arrowGeometry = new THREE.ConeGeometry(1, 3, 32);
-    const arrowMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    arrow.rotation.x = Math.PI; // Point arrow forward
-    scene.add(arrow);
-
-    // Lighting for 3D arrow
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 5, 10).normalize();
-    scene.add(light);
-
-    // ---------- DISTANCE + BEARING ----------
-    function calculateBearing(lat1, lon1, lat2, lon2) {
-      const toRad = deg => (deg * Math.PI) / 180;
-      const toDeg = rad => (rad * 180) / Math.PI;
-
-      const dLon = toRad(lon2 - lon1);
-      const y = Math.sin(dLon) * Math.cos(toRad(lat2));
-      const x =
-        Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
-        Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
-
-      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+/* parse "location" parameter that might be JSON or shorthand like {lat:-37.8,long:144.9} */
+function parseLocationParam(raw) {
+  try {
+    // some browsers automatically decode; try JSON first
+    const maybe = JSON.parse(raw);
+    if (maybe && (maybe.lat || maybe.latitude) && (maybe.long || maybe.lng || maybe.lon || maybe.longitude)) {
+      return {
+        lat: maybe.lat || maybe.latitude,
+        long: maybe.long || maybe.lng || maybe.lon || maybe.longitude,
+        label: maybe.label || 'Destination'
+      };
     }
+  } catch (e) {
+    // ignore
+  }
+  // fallback: extract first two floats
+  const m = raw.match(/-?\d+\.\d+/g);
+  if (m && m.length >= 2) {
+    return { lat: parseFloat(m[0]), long: parseFloat(m[1]), label: 'Destination' };
+  }
+  // last fallback: return colesClayton
+  return { lat: colesClayton.lat, long: colesClayton.long, label: 'Test Location' };
+}
 
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371e3; // meters
-      const φ1 = (lat1 * Math.PI) / 180;
-      const φ2 = (lat2 * Math.PI) / 180;
-      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+/* helpers: distance (m) and bearing (degrees from north) */
+function toRad(d){ return d * Math.PI/180; }
+function toDeg(r){ return r * 180/Math.PI; }
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δφ = toRad(lat2-lat1), Δλ = toRad(lon2-lon1);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function bearingBetween(lat1, lon1, lat2, lon2) {
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const λ1 = toRad(lon1), λ2 = toRad(lon2);
+  const y = Math.sin(λ2-λ1) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) -
+            Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
 
-      const a =
-        Math.sin(Δφ / 2) ** 2 +
-        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+/* UI */
+const gateLabelEl = document.getElementById('gateLabel');
+const distLabelEl = document.getElementById('distLabel');
+const allowMotionBtn = document.getElementById('allowMotion');
+const debugBox = document.getElementById('debugBox');
 
-      return R * c;
+gateLabelEl.textContent = destination.label || 'Destination';
+
+/* show debug if requested */
+if (debugOn) debugBox.classList.add('visible');
+
+/* -------------------------
+   Camera (video) setup
+   ------------------------- */
+const video = document.getElementById('camera');
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }, audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+  } catch (err) {
+    console.error('camera error', err);
+    // show hint to user
+    document.getElementById('hint').textContent = 'Camera blocked or not available. Use a secure mobile browser and allow camera.';
+  }
+}
+startCamera();
+
+/* -------------------------
+   Three.js scene
+   ------------------------- */
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+function resizeRenderer() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+}
+window.addEventListener('resize', resizeRenderer);
+resizeRenderer();
+
+const scene = new THREE.Scene();
+
+/* camera: positioned at origin, looking down -Z */
+const camera3 = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.01, 1000);
+camera3.position.set(0, 0, 0);
+
+/* lights */
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+dir.position.set(2, 6, 2);
+scene.add(dir);
+
+/* Arrow group: stem + tip + subtle ring */
+const group = new THREE.Group();
+
+/* stem */
+const stemGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.2, 12);
+const stemMat = new THREE.MeshStandardMaterial({ color:0x00b0ff, metalness:0.2, roughness:0.4, emissive:0x002a44, emissiveIntensity:0.3 });
+const stem = new THREE.Mesh(stemGeo, stemMat);
+stem.rotation.x = Math.PI/2; // align horizontally
+stem.position.set(0, 0, 0);
+group.add(stem);
+
+/* tip (cone) */
+const tipGeo = new THREE.ConeGeometry(0.12, 0.4, 24);
+const tipMat = new THREE.MeshStandardMaterial({ color:0xffd54f, metalness:0.1, roughness:0.4, emissive:0x442200, emissiveIntensity:0.2 });
+const tip = new THREE.Mesh(tipGeo, tipMat);
+/* The cone points +Y by default. We want the tip to point forward (-Z), so rotate: */
+tip.rotation.x = Math.PI/2;
+tip.position.set(0, 0, -0.75);
+group.add(tip);
+
+/* ring under arrow for depth cue */
+const ringGeo = new THREE.TorusGeometry(0.22, 0.01, 8, 64);
+const ringMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.85 });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI/2;
+ring.position.set(0, -0.45, -1.0);
+group.add(ring);
+
+/* initial placement: in front of camera on -Z */
+group.position.set(0, -0.2, -4);
+scene.add(group);
+
+/* small scale so it feels right */
+group.scale.setScalar(1.0);
+
+/* -------------------------
+   Sensors & position state
+   ------------------------- */
+let userLat = null, userLng = null;
+let userHeading = null; // degrees (0 = north)
+let lastUpdate = performance.now();
+
+/* URL override for testing heading */
+if (params.get('heading')) {
+  userHeading = parseFloat(params.get('heading'));
+  if (isNaN(userHeading)) userHeading = null;
+}
+
+/* Location override param - if provided we use that as the user's position (simulate) */
+if (params.get('location')) {
+  const override = parseLocationParam(params.get('location'));
+  userLat = override.lat;
+  userLng = override.long;
+  // if heading param not provided, set a default heading (facing north)
+  if (userHeading === null) userHeading = 0;
+  updatePlacement();
+}
+
+/* get real GPS if no override */
+if (!params.get('location')) {
+  if ('geolocation' in navigator) {
+    navigator.geolocation.watchPosition(pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      updatePlacement();
+    }, err => {
+      console.warn('GPS error', err);
+      document.getElementById('hint').textContent = 'GPS unavailable. Use ?location=... to simulate.';
+    }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 8000 });
+  } else {
+    document.getElementById('hint').textContent = 'Geolocation not supported';
+  }
+}
+
+/* -------------------------
+   Device orientation (compass)
+   - handles iOS requestPermission flow
+   - adjusts using screen orientation when possible
+   ------------------------- */
+function screenAngle() {
+  const s = (screen.orientation && screen.orientation.angle) || (window.orientation || 0);
+  return (typeof s === 'number') ? s : 0;
+}
+
+function handleDeviceOrientation(e) {
+  // prefer webkitCompassHeading on iOS
+  if (typeof e.webkitCompassHeading === 'number') {
+    userHeading = e.webkitCompassHeading; // already in degrees clockwise from north
+  } else if (typeof e.alpha === 'number') {
+    // alpha: rotation around z-axis in degrees.
+    // Many Android devices report alpha where 0 = device pointing east; behavior differs.
+    // A practical approach: convert to compass heading using 360 - alpha and adjust by screen angle.
+    // This is robust in many mobile browsers; fine-tune later on real devices.
+    const alpha = e.alpha;
+    const angle = screenAngle();
+    // The formula below works well in practice on Android Chrome:
+    userHeading = (360 - alpha + angle) % 360;
+  }
+  // update display
+  updatePlacement();
+}
+
+/* iOS motion permission */
+const allowBtn = document.getElementById('allowMotion');
+if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+  // iOS requires user gesture to grant motion permission
+  allowBtn.style.display = 'inline-block';
+  allowBtn.addEventListener('click', async () => {
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm === 'granted') {
+        window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+        window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+        allowBtn.style.display = 'none';
+      } else {
+        alert('Motion permission denied. Compass won’t work.');
+      }
+    } catch (err) {
+      console.warn('permission error', err);
+      alert('Motion permission error');
     }
+  });
+} else {
+  // non-iOS — just add listeners
+  window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+  window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+}
 
-    // ---------- UPDATE ARROW ----------
-    function updateArrow() {
-      if (userLat == null || userLng == null) return;
+/* Desktop fallback: allow dragging to simulate heading */
+let pointerDown = false;
+let lastX = 0;
+window.addEventListener('pointerdown', e => { pointerDown = true; lastX = e.clientX; });
+window.addEventListener('pointerup', () => pointerDown = false);
+window.addEventListener('pointermove', e => {
+  if (!pointerDown) return;
+  const dx = e.clientX - lastX;
+  lastX = e.clientX;
+  if (userHeading === null) userHeading = 0;
+  userHeading = (userHeading + dx * 0.2) % 360;
+  updatePlacement();
+});
 
-      const bearing = calculateBearing(userLat, userLng, destination.lat, destination.long);
-      const angle = THREE.MathUtils.degToRad(bearing - userHeading);
+/* -------------------------
+   Core math: place & rotate arrow
+   ------------------------- */
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+let smoothPos = new THREE.Vector3();
+let smoothScale = 1;
 
-      // Rotate the arrow around Y-axis
-      arrow.rotation.y = angle;
+function updatePlacement() {
+  if (userLat == null || userLng == null) return;
+  if (userHeading == null) {
+    // if heading not available yet, we still update distance label
+    const dist = haversineDistance(userLat, userLng, destination.lat, destination.long);
+    distLabelEl.textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(2)} km`;
+    debugUpdate();
+    return;
+  }
 
-      const dist = calculateDistance(userLat, userLng, destination.lat, destination.long);
-      distanceLabel.innerText = `${dist < 1000 ? dist.toFixed(0) + " m" : (dist / 1000).toFixed(2) + " km"} away`;
-    }
+  // compute distance (meters) and bearing (degrees from north)
+  const dist = haversineDistance(userLat, userLng, destination.lat, destination.long);
+  const bearing = bearingBetween(userLat, userLng, destination.lat, destination.long);
 
-    // ---------- GPS TRACKING ----------
-    if (!locParam) {
-      navigator.geolocation.watchPosition(
-        pos => {
-          userLat = pos.coords.latitude;
-          userLng = pos.coords.longitude;
-          updateArrow();
-        },
-        err => console.error("GPS error:", err),
-        { enableHighAccuracy: true }
-      );
-    } else {
-      const parsed = JSON.parse(locParam);
-      userLat = parsed.lat;
-      userLng = parsed.long;
-      updateArrow();
-    }
+  // relative angle from user's heading to bearing (-180..180)
+  let rel = ((bearing - userHeading + 540) % 360) - 180; // -180..180
+  const relRad = THREE.MathUtils.degToRad(rel);
 
-    // ---------- COMPASS HEADING ----------
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener("deviceorientationabsolute", e => {
-        if (e.alpha !== null) {
-          userHeading = e.alpha;
-          updateArrow();
-        }
-      });
+  // map real distance to scene distance (meters -> scene units)
+  let sceneDist = clamp(dist / 10, 2.0, 12.0); // tune mapping: 10 real meters -> 1 scene unit
+  // compute target position where arrow will float relative to camera (camera looks -Z)
+  const targetX = Math.sin(relRad) * sceneDist;
+  const targetZ = -Math.cos(relRad) * sceneDist;
+  const targetY = -0.3; // slightly below eye
 
-      window.addEventListener("deviceorientation", e => {
-        if (e.alpha !== null) {
-          userHeading = e.alpha;
-          updateArrow();
-        }
-      });
-    }
+  // smooth the motion to avoid jitter
+  smoothPos.x += (targetX - smoothPos.x) * 0.22;
+  smoothPos.y += (targetY - smoothPos.y) * 0.12;
+  smoothPos.z += (targetZ - smoothPos.z) * 0.22;
 
-    // ---------- ANIMATE ----------
-    function animate() {
-      requestAnimationFrame(animate);
-      renderer.render(scene, camera);
-    }
+  // update group position
+  group.position.set(smoothPos.x, smoothPos.y, smoothPos.z);
 
-    animate();
-  </script>
+  // rotate arrow so its tip points toward forward direction of the group (we want tip pointing ahead of group frame)
+  // our cone tip points in -Z in group space; setting group's rotation.y to relRad aligns it so tip faces the bearing
+  group.rotation.y += (relRad - group.rotation.y) * 0.28;
+
+  // scale arrow visually based on distance
+  const targetScale = clamp(6 / (sceneDist / 2 + 0.01), 0.7, 2.2);
+  smoothScale += (targetScale - smoothScale) * 0.16;
+  group.scale.setScalar(smoothScale);
+
+  // update HUD
+  distLabelEl.textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(2)} km`;
+  debugUpdate();
+}
+
+/* debug text */
+function debugUpdate() {
+  if (!debugOn) return;
+  const txt = [
+    `UserLat: ${userLat?.toFixed(6) || '-'}`,
+    `UserLng: ${userLng?.toFixed(6) || '-'}`,
+    `DestLat: ${destination.lat}, DestLng: ${destination.long}`,
+    `Heading: ${userHeading !== null ? userHeading.toFixed(1) + '°' : '-'}`,
+  ];
+  debugBox.innerText = txt.join('\n');
+}
+
+/* -------------------------
+   Animate
+   ------------------------- */
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera3);
+}
+animate();
+
+/* -------------------------
+   Resize handling initially
+   ------------------------- */
+(function initResize(){
+  function onResize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera3.aspect = w / h;
+    camera3.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
+})();
+
+/* -------------------------
+   If motion permission is necessary on iOS,
+   the allow button will be visible and the user can trigger it.
+   ------------------------- */
+if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+  // show message to user
+  document.getElementById('hint').textContent = 'Tap "Enable Motion" to allow compass (iOS)';
+  allowBtn.style.display = 'inline-block';
+} else {
+  allowBtn.style.display = 'none';
+}
+
+/* small helper: if debug param present, show debug box */
+if (debugOn) debugBox.classList.add('visible');
+
+</script>
 </body>
 </html>
