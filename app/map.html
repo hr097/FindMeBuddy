@@ -1,61 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Marvel Stadium Route</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>Marvel Stadium – Live Walk</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet -->
+  <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet Routing Machine (LRM) -->
+  <link href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" rel="stylesheet">
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
   <style>
-    body, html { margin:0; height:100%; }
-    #map { width:100%; height:100%; }
+    html, body, #map { height: 100%; margin: 0; }
+    /* User marker: pulse dot */
+    .user-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #0ea5e9; border: 2px solid #fff;
+      box-shadow: 0 0 8px rgba(0,0,0,.35);
+      position: relative;
+    }
+    .user-dot::after {
+      content: "";
+      position: absolute; inset: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(14,165,233,.5);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 
+      0% { transform: scale(0.5); opacity: .8; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+
+    /* Hide LRM’s default panel */
+    .leaflet-routing-container { display: none; }
   </style>
 </head>
-<body id="map" >
-<div></div>
+<body>
+  <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-  // --- 1. Get URL parameters for starting point & gate ---
-  const params = new URLSearchParams(window.location.search);
-  const startX = parseFloat(params.get('startX')) || 1800; // default x
-  const startY = parseFloat(params.get('startY')) || 200;  // default y
-  const gate = params.get('gate') || '3';
+  <script>
+    // --- 1) Target (Gate-03 by default, override via ?lat=&long=) ---
+    // Gate-03 / Stadium Square approx (Marvel Stadium, Docklands)
+    // Adjust to your precise gate coordinates if you have them.
+    const GATE03_DEFAULT = { lat: -37.816528, lng: 144.947266 };
 
-  // --- 2. Image overlay setup ---
-  const imageUrl = 'marvel-stadium.png'; // uploaded image
-  const imageWidth = 4000;  // adjust according to your image
-  const imageHeight = 2500; // adjust according to your image
-  const bounds = [[0,0],[imageHeight,imageWidth]]; // top-left, bottom-right
+    const q = new URLSearchParams(location.search);
+    const qpLat  = parseFloat(q.get("lat"));
+    const qpLong = parseFloat(q.get("long"));
+    const target = (!Number.isNaN(qpLat) && !Number.isNaN(qpLong))
+      ? { lat: qpLat, lng: qpLong }
+      : GATE03_DEFAULT;
 
-  const map = L.map('map', { crs:L.CRS.Simple, minZoom:-2 });
-  L.imageOverlay(imageUrl, bounds).addTo(map);
-  map.fitBounds(bounds);
+    // --- 2) Base map ---
+    const map = L.map("map", { zoomControl: true }).setView([target.lat, target.lng], 17);
 
-  // --- 3. Gate coordinates (pixel positions on image) ---
-  const gates = {
-    "1": [1600, 300],
-    "2": [1500, 600],
-    "3": [300, 1800],
-    "4": [400, 1500],
-    "5": [500, 1300],
-    "6": [600, 1100],
-    "7": [800, 900],
-    "8": [1000, 700],
-    "9": [1200, 500]
-  };
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-  // --- 4. Add markers ---
-  const startMarker = L.marker([startY, startX]).addTo(map).bindPopup("You are here").openPopup();
-  const gatePos = gates[gate] || gates['3'];
-  const gateMarker = L.marker([gatePos[0], gatePos[1]]).addTo(map).bindPopup(`Gate ${gate}`);
+    // Target marker (Gate or param location)
+    const targetMarker = L.marker([target.lat, target.lng], {
+      title: "Target (Gate-03)"
+    }).addTo(map).bindPopup("Target (Gate-03)").openPopup();
 
-  // --- 5. Draw route ---
-  const route = L.polyline([
-    [startY, startX],
-    [gatePos[0], gatePos[1]]
-  ], { color: 'green', weight: 4 }).addTo(map);
+    // --- 3) User marker (live) ---
+    const userIcon = L.divIcon({ className: "user-dot", iconSize: [16,16], iconAnchor: [8,8] });
+    const userMarker = L.marker([target.lat, target.lng], { icon: userIcon }).addTo(map);
+    let haveUserFix = false;
 
-</script>
+    // --- 4) Walking route (OSRM via Leaflet Routing Machine) ---
+    const routing = L.Routing.control({
+      waypoints: [],
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: false,
+      show: false,
+      router: L.Routing.osrmv1({
+        serviceUrl: "https://router.project-osrm.org/route/v1",
+        profile: "foot"
+      }),
+      lineOptions: { styles: [{ weight: 5, opacity: 0.9 }] },
+      createMarker: () => null // we supply our own markers
+    }).addTo(map);
+
+    function setRoute(fromLatLng, toLatLng) {
+      routing.setWaypoints([ L.latLng(fromLatLng.lat, fromLatLng.lng), L.latLng(toLatLng.lat, toLatLng.lng) ]);
+    }
+
+    // --- 5) Live tracking: update every ~5s & re-route on changes ---
+    let lastRerouteAt = 0;
+    const REROUTE_INTERVAL_MS = 5000;
+
+    function maybeReroute(userLL) {
+      const now = Date.now();
+      if (now - lastRerouteAt >= REROUTE_INTERVAL_MS) {
+        setRoute(userLL, target);
+        lastRerouteAt = now;
+      }
+    }
+
+    // Keep both points in view initially, then follow the user
+    function fitBoth(userLL) {
+      const b = L.latLngBounds([ [userLL.lat, userLL.lng], [target.lat, target.lng] ]);
+      map.fitBounds(b.pad(0.2));
+    }
+
+    // --- 6) Geolocation: watch user position ---
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported on this device/browser.");
+    } else {
+      const watchId = navigator.geolocation.watchPosition(
+        pos => {
+          const userLL = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          userMarker.setLatLng(userLL);
+
+          if (!haveUserFix) {
+            haveUserFix = true;
+            // first fix: show both markers and draw initial walking route
+            fitBoth(userLL);
+            setRoute(userLL, target);
+            lastRerouteAt = Date.now();
+          } else {
+            // follow user softly
+            map.panTo(userLL, { animate: true });
+            maybeReroute(userLL);
+          }
+        },
+        err => {
+          console.error(err);
+          if (!haveUserFix) {
+            alert("Couldn’t get your location. Showing target only.");
+            map.setView([target.lat, target.lng], 17);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+
+      // Optional: stop watching when leaving page
+      window.addEventListener("beforeunload", () => {
+        try { navigator.geolocation.clearWatch(watchId); } catch {}
+      });
+    }
+  </script>
 </body>
 </html>
