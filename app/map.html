@@ -45,8 +45,8 @@
   <div id="map"></div>
 
   <script>
-    // --- 1) Target location ---
-    const GATE03_DEFAULT = { lat: -37.816528, lng: 144.947266 }; // Marvel Stadium Gate-03
+    // --- 1) Fixed target location (Marvel Stadium Gate-03) ---
+    const GATE03_DEFAULT = { lat: -37.816528, lng: 144.947266 };
     const params = new URLSearchParams(location.search);
     const qpLat  = parseFloat(params.get("lat"));
     const qpLng  = parseFloat(params.get("long") || params.get("lng"));
@@ -62,7 +62,7 @@
     }).addTo(map);
 
     // --- 3) Target marker ---
-    const targetMarker = L.marker([target.lat, target.lng], { title: "Target" })
+    L.marker([target.lat, target.lng])
       .addTo(map)
       .bindPopup("Target Location")
       .openPopup();
@@ -83,10 +83,13 @@
     }).addTo(map);
 
     function setRoute(from, to) {
-      routing.setWaypoints([ L.latLng(from.lat, from.lng), L.latLng(to.lat, to.lng) ]);
+      routing.setWaypoints([
+        L.latLng(from.lat, from.lng),
+        L.latLng(to.lat, to.lng)
+      ]);
     }
 
-    // --- 5) User marker (only after we have real GPS coords) ---
+    // --- 5) User marker with real GPS ---
     let userMarker = null;
     const userIcon = L.divIcon({ className: "user-dot", iconSize: [16,16], iconAnchor: [8,8] });
 
@@ -99,47 +102,40 @@
       }
     }
 
-    // --- 6) Live tracking ---
-    let haveUserFix = false;
+    // --- 6) Live GPS tracking ---
     let lastRerouteAt = 0;
     const REROUTE_INTERVAL = 5000;
 
-    function maybeReroute(userLL) {
-      const now = Date.now();
-      if (now - lastRerouteAt >= REROUTE_INTERVAL) {
-        setRoute(userLL, target);
-        lastRerouteAt = now;
-      }
-    }
-
-    function fitBoth(userLL) {
-      const bounds = L.latLngBounds([
-        [userLL.lat, userLL.lng],
-        [target.lat, target.lng]
-      ]);
-      map.fitBounds(bounds.pad(0.2));
-    }
-
-    // --- 7) Start GPS immediately ---
     if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
         pos => {
-          const userLL = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const userLL = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+
+          // Always show the real current GPS position
           updateUserMarker(userLL.lat, userLL.lng);
 
-          if (!haveUserFix) {
-            haveUserFix = true;
-            fitBoth(userLL);
+          // Re-route every 5 seconds as the user moves
+          const now = Date.now();
+          if (now - lastRerouteAt > REROUTE_INTERVAL) {
             setRoute(userLL, target);
-            lastRerouteAt = Date.now();
-          } else {
-            map.panTo([userLL.lat, userLL.lng], { animate: true });
-            maybeReroute(userLL);
+            lastRerouteAt = now;
+          }
+
+          // Fit bounds initially when we first get location
+          if (lastRerouteAt === now) {
+            const bounds = L.latLngBounds([
+              [userLL.lat, userLL.lng],
+              [target.lat, target.lng]
+            ]);
+            map.fitBounds(bounds.pad(0.2));
           }
         },
         err => {
-          console.error("GPS error", err);
-          alert("Unable to access your location. Showing target only.");
+          console.error("GPS error:", err);
+          alert("Unable to access your location. Showing only the target.");
           map.setView([target.lat, target.lng], 17);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
