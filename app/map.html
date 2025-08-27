@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AR Direction</title>
+  <title>AR 3D Direction</title>
   <style>
     html, body {
       margin: 0;
@@ -12,30 +12,6 @@
       height: 100%;
       background: black;
     }
-
-    video {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 0;
-    }
-
-    #arrow {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 120px;
-      height: 120px;
-      margin-left: -60px;
-      margin-top: -60px;
-      z-index: 10;
-      transform-origin: center center;
-      transition: transform 0.1s linear;
-    }
-
     #distance {
       position: fixed;
       bottom: 30px;
@@ -47,51 +23,57 @@
       padding: 10px 15px;
       border-radius: 10px;
       font-family: Arial, sans-serif;
+      z-index: 100;
     }
   </style>
 </head>
 <body>
-  <!-- Live camera -->
-  <video id="camera" autoplay playsinline></video>
-
-  <!-- Direction Arrow -->
-  <img id="arrow" src="https://cdn-icons-png.flaticon.com/512/545/545682.png" alt="Direction Arrow" />
-
-  <!-- Distance display -->
   <div id="distance">Calculating distance...</div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 
   <script>
-    // ---------- CONFIGURATION ----------
+    // ---------- URL PARAMS ----------
     const urlParams = new URLSearchParams(window.location.search);
     const locParam = urlParams.get("location");
 
     // Default destination → Marvel Stadium Gate 3
     const destination = locParam
       ? JSON.parse(locParam)
-      : { "lat": -37.926842340381, "long": 145.11908574083 }
+      : {"lat": -37.926842340381, "long": 145.11908574083};
 
     let userLat = null;
     let userLng = null;
     let userHeading = 0;
 
-    const arrow = document.getElementById("arrow");
     const distanceLabel = document.getElementById("distance");
 
-    // ---------- CAMERA SETUP ----------
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false,
-        });
-        document.getElementById("camera").srcObject = stream;
-      } catch (err) {
-        console.error("Camera access denied:", err);
-        alert("Camera access is required for AR navigation.");
-      }
-    }
+    // ---------- THREE.JS SETUP ----------
+    const scene = new THREE.Scene();
 
-    // ---------- CALCULATE BEARING ----------
+    // Camera → positioned like AR
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Transparent background for live camera
+    renderer.setClearColor(0x000000, 0);
+
+    // 3D Arrow
+    const arrowGeometry = new THREE.ConeGeometry(1, 3, 32);
+    const arrowMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+    arrow.rotation.x = Math.PI; // Point arrow forward
+    scene.add(arrow);
+
+    // Lighting for 3D arrow
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 5, 10).normalize();
+    scene.add(light);
+
+    // ---------- DISTANCE + BEARING ----------
     function calculateBearing(lat1, lon1, lat2, lon2) {
       const toRad = deg => (deg * Math.PI) / 180;
       const toDeg = rad => (rad * 180) / Math.PI;
@@ -105,7 +87,6 @@
       return (toDeg(Math.atan2(y, x)) + 360) % 360;
     }
 
-    // ---------- CALCULATE DISTANCE ----------
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371e3; // meters
       const φ1 = (lat1 * Math.PI) / 180;
@@ -126,8 +107,10 @@
       if (userLat == null || userLng == null) return;
 
       const bearing = calculateBearing(userLat, userLng, destination.lat, destination.long);
-      const angle = bearing - userHeading;
-      arrow.style.transform = `rotate(${angle}deg)`;
+      const angle = THREE.MathUtils.degToRad(bearing - userHeading);
+
+      // Rotate the arrow around Y-axis
+      arrow.rotation.y = angle;
 
       const dist = calculateDistance(userLat, userLng, destination.lat, destination.long);
       distanceLabel.innerText = `${dist < 1000 ? dist.toFixed(0) + " m" : (dist / 1000).toFixed(2) + " km"} away`;
@@ -145,7 +128,6 @@
         { enableHighAccuracy: true }
       );
     } else {
-      // Override location for simulation
       const parsed = JSON.parse(locParam);
       userLat = parsed.lat;
       userLng = parsed.long;
@@ -169,8 +151,13 @@
       });
     }
 
-    // ---------- INIT CAMERA ----------
-    startCamera();
+    // ---------- ANIMATE ----------
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    animate();
   </script>
 </body>
 </html>
