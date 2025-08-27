@@ -16,23 +16,23 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // --- 1. Get URL parameters ---
+  // --- 1. Get URL parameters for starting point & gate ---
   const params = new URLSearchParams(window.location.search);
-  const startX = parseFloat(params.get('startX')) || 1800; // default starting point x
-  const startY = parseFloat(params.get('startY')) || 200;  // default starting point y
+  const startX = parseFloat(params.get('startX')) || 1800; // default x
+  const startY = parseFloat(params.get('startY')) || 200;  // default y
   const gate = params.get('gate') || '3';
 
-  // --- 2. Image setup ---
-  const imageUrl = 'marvel-stadium.png'; // your static map image
-  const imageWidth = 2000; // pixel width of your image
-  const imageHeight = 2000; // pixel height of your image
+  // --- 2. Image overlay setup ---
+  const imageUrl = '/mnt/data/marvel-stadium.png'; // uploaded image
+  const imageWidth = 2000;  // adjust according to your image
+  const imageHeight = 2000; // adjust according to your image
   const bounds = [[0,0],[imageHeight,imageWidth]]; // top-left, bottom-right
 
-  const map = L.map('map', { crs:L.CRS.Simple, minZoom: -2 });
+  const map = L.map('map', { crs:L.CRS.Simple, minZoom:-2 });
   L.imageOverlay(imageUrl, bounds).addTo(map);
   map.fitBounds(bounds);
 
-  // --- 3. Gate coordinates (pixel positions on the image) ---
+  // --- 3. Gate coordinates (pixel positions on image) ---
   const gates = {
     "1": [1600, 300],
     "2": [1500, 600],
@@ -45,15 +45,16 @@
     "9": [1200, 500]
   };
 
+  // --- 4. Add markers ---
   const startMarker = L.marker([startY, startX]).addTo(map).bindPopup("You are here").openPopup();
   const gatePos = gates[gate] || gates['3'];
   const gateMarker = L.marker([gatePos[0], gatePos[1]]).addTo(map).bindPopup(`Gate ${gate}`);
 
-  // --- 4. Draw route ---
+  // --- 5. Draw route ---
   const route = L.polyline([
     [startY, startX],
     [gatePos[0], gatePos[1]]
-  ], { color: 'red', weight: 4 }).addTo(map);
+  ], { color: 'green', weight: 4 }).addTo(map);
 
 </script>
 </body>
